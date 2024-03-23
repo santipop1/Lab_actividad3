@@ -106,6 +106,36 @@ def world():
                 path.goto(x + 10, y + 10)
                 path.dot(2, 'white')
 
+def distance(point1, point2):
+    "Calculate the distance between two points."
+    x1, y1 = point1
+    x2, y2 = point2
+    return abs(x1 - x2) + abs(y1 - y2)
+
+def get_direction(point1, point2):
+    "Determine the direction vector from point1 to point2."
+    x1, y1 = point1
+    x2, y2 = point2
+    x_diff = (x2 - x1) // 20  # Integer division for grid movement
+    y_diff = (y2 - y1) // 20
+    return vector(x_diff, y_diff)
+
+def check_wall_collision(point, course):
+    """
+    Check if the next move would lead to a wall collision.
+    Returns a new course if a collision is detected, otherwise the original course.
+    """
+    next_point = point + course
+    index = offset(next_point)
+
+    if not valid(next_point):
+        # Collision detected, reverse direction in the colliding axis
+        if course.x != 0:
+            course.x = -course.x
+        else:
+            course.y = -course.y
+
+    return course
 
 def move():
     """Move pacman and all ghosts."""
@@ -130,10 +160,16 @@ def move():
     goto(pacman.x + 10, pacman.y + 10)
     dot(20, 'yellow')
 
-    for point, course in ghosts:
-        if valid(point + course):
-            point.move(course)
-        else:
+    for i in range(len(ghosts)):
+        point, course = ghosts[i]
+        # Calculate the direction to chase PacMan
+        chase_direction = get_direction(point, pacman)
+
+        # Check for wall collision and adjust course if necessary
+        course = check_wall_collision(point, course)
+
+        # If the current course isn't valid, choose a random direction
+        if not valid(point + course):
             options = [
                 vector(5, 0),
                 vector(-5, 0),
@@ -143,6 +179,13 @@ def move():
             plan = choice(options)
             course.x = plan.x
             course.y = plan.y
+
+        # Prioritize chasing PacMan over random movement
+        if distance(point + chase_direction, pacman) < distance(point + course, pacman):
+            course.x = chase_direction.x
+            course.y = chase_direction.y
+
+        point.move(course)
 
         up()
         goto(point.x + 10, point.y + 10)
@@ -155,7 +198,6 @@ def move():
             return
 
     ontimer(move, 100)
-
 
 def change(x, y):
     """Change pacman aim if valid."""
